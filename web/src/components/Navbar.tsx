@@ -49,10 +49,10 @@ export default function Navbar() {
 
   return (
     <nav className="navbar">
-      <div className="container navbar-inner">
+      <div className="navbar-inner reveal-element">
         {/* Logo */}
         <Link href="/" className="navbar-logo">
-          <span className="logo-icon">🚗</span>
+          <span className="logo-icon">a</span>
           <span className="logo-text">AutoEncyclopédie</span>
         </Link>
 

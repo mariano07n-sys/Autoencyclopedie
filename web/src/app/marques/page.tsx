@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
+import Reveal from "@/components/Reveal";
 
 interface Brand {
   id: number;
@@ -60,6 +61,7 @@ export default function MarquesPage() {
   return (
     <>
       <Navbar />
+      <Reveal />
       <div style={{ paddingTop: 100 }}>
         <div className="container">
           {/* Header */}

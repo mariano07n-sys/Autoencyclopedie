@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
+import Reveal from "@/components/Reveal";
 
 interface Model {
   id: number;
@@ -48,6 +49,7 @@ export default function ModelesPage() {
   return (
     <>
       <Navbar />
+      <Reveal />
       <div style={{ paddingTop: 100 }}>
         <div className="container">
           <div className="section-header animate-fadeInUp">

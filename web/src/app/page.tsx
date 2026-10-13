@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
+import BlurWords from "@/components/BlurWords";
+import Reveal from "@/components/Reveal";
 
 interface Stats {
   brands: number;
@@ -53,30 +55,32 @@ export default function HomePage() {
   return (
     <>
       <Navbar />
+      <Reveal />
 
       {/* ── HERO ── */}
       <section className="hero">
         <div className="hero-bg" />
         <div className="container">
-          <div className="hero-content animate-fadeInUp">
-            <div className="hero-badge">
-              <span>⚡</span>
-              Encyclopédie Automobile Mondiale
+          <div className="hero-content">
+            <div className="hero-badge liquid-glass reveal-element" style={{ transitionDelay: "0.4s" }}>
+              <span className="badge-pill">Nouveau</span>
+              <span className="badge-text">Encyclopédie automobile mondiale — données enrichies par IA</span>
             </div>
             <h1 className="hero-title">
-              Toutes les voitures<br />depuis 1886
+              <BlurWords text="Toutes les voitures depuis 1886" />
             </h1>
-            <p className="hero-subtitle">
+            <p className="hero-subtitle reveal-element" style={{ transitionDelay: "0.9s" }}>
               Explorez l'histoire complète de l'automobile — des premières
               tricycles à vapeur aux hypercars électriques d'aujourd'hui.
               Chaque marque, chaque modèle, chaque génération.
             </p>
-            <div className="hero-cta">
+            <div className="hero-cta reveal-element" style={{ transitionDelay: "1.1s" }}>
               <Link href="/marques" className="btn btn-primary">
-                🏭 Explorer les marques
+                Explorer les marques
+                <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="2" fill="none"><path d="M7 17L17 7" /><path d="M7 7h10v10" /></svg>
               </Link>
               <Link href="/modeles" className="btn btn-secondary">
-                🚗 Tous les modèles
+                Tous les modèles
               </Link>
             </div>
 
@@ -86,8 +90,12 @@ export default function HomePage() {
                 { num: loading ? "..." : stats.models.toLocaleString(), label: "Modèles" },
                 { num: loading ? "..." : stats.specs.toLocaleString(), label: "Fiches techniques" },
                 { num: "140+", label: "Ans d'histoire" },
-              ].map((s) => (
-                <div className="stat-item" key={s.label}>
+              ].map((s, i) => (
+                <div
+                  className="stat-item liquid-glass reveal-element"
+                  key={s.label}
+                  style={{ transitionDelay: `${1.2 + i * 0.1}s` }}
+                >
                   <div className="stat-number">{s.num}</div>
                   <div className="stat-label">{s.label}</div>
                 </div>
@@ -100,7 +108,7 @@ export default function HomePage() {
       {/* ── MARQUES ── */}
       <section className="section" style={{ paddingTop: 0 }}>
         <div className="container">
-          <div className="section-header">
+          <div className="section-header reveal-element">
             <span className="section-label">Constructeurs</span>
             <h2 className="section-title">Marques du monde entier</h2>
             <p className="section-subtitle">
@@ -172,7 +180,7 @@ export default function HomePage() {
       {iconicModels.length > 0 && (
         <section className="section" style={{ background: "var(--bg-surface)" }}>
           <div className="container">
-            <div className="section-header">
+            <div className="section-header reveal-element">
               <span className="section-label">Légendes</span>
               <h2 className="section-title">Modèles iconiques</h2>
             </div>
@@ -227,7 +235,7 @@ export default function HomePage() {
       {/* ── GUIDE DE DÉMARRAGE ── */}
       <section className="section" id="guide">
         <div className="container">
-          <div className="section-header">
+          <div className="section-header reveal-element">
             <span className="section-label">Démarrage rapide</span>
             <h2 className="section-title">Comment alimenter la base de données ?</h2>
             <p className="section-subtitle">

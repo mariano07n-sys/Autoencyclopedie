@@ -11,9 +11,9 @@ Légende : ✅ fait · ⬜ à faire · 🔧 action manuelle (vous)
 | # | Tâche | Statut |
 |---|--------|--------|
 | 1.1 | Schéma SQL `brands`, `models`, `specs`, `agent_tasks`, `search_cache` + RLS lecture publique | ✅ |
-| 1.2 | Créer un projet sur [supabase.com](https://supabase.com) | 🔧 |
-| 1.3 | Exécuter `supabase/migrations/001_schema.sql` dans **SQL Editor** | 🔧 |
-| 1.4 | Copier **Project URL**, **anon key**, **service role key**, **Database URI** | 🔧 |
+| 1.2 | Créer un projet sur [supabase.com](https://supabase.com) | ✅ `autoencyclopedie` (ref `vieafbhisxqfnkevcivn`, Paris eu-west-3) |
+| 1.3 | Exécuter `supabase/migrations/001_schema.sql` dans **SQL Editor** | ✅ (via Management API) |
+| 1.4 | Copier **Project URL**, **anon key**, **service role key**, **Database URI** | ✅ écrits dans `agent/.env` + `web/.env.local` |
 
 ---
 
@@ -26,11 +26,11 @@ Légende : ✅ fait · ⬜ à faire · 🔧 action manuelle (vous)
 | 2.3 | Cache Gemini compatible Postgres (`get_cached_result` / `cache_result`) | ✅ |
 | 2.4 | Dépendance `psycopg` dans `agent/requirements.txt` | ✅ |
 | 2.5 | Documenter variables dans `agent/.env.example` | ✅ |
-| 2.6 | `pip install -r agent/requirements.txt` | 🔧 |
-| 2.7 | Renseigner `DATABASE_URL` (URI Postgres Supabase) dans `agent/.env` | 🔧 |
-| 2.8 | `python agent/database_postgres.py` ou `python -c "from database import initialize_database; initialize_database()"` depuis `agent/` | 🔧 |
-| 2.9 | `python agent/seed_data.py` puis collecte (`python agent/main.py --full-run` ou menu) | 🔧 |
-| 2.10 | Retirer `agent/.env` du suivi Git (`git rm --cached agent/.env`) si encore versionné | 🔧 |
+| 2.6 | `pip install -r agent/requirements.txt` | ✅ `.venv` créé ; psycopg+dotenv installés (complet requis pour le collecteur Gemini) |
+| 2.7 | Renseigner `DATABASE_URL` (URI Postgres Supabase) dans `agent/.env` | ✅ rôle dédié `agent_app` |
+| 2.8 | Initialiser le schéma | ✅ (tables + RLS présents) |
+| 2.9 | `python agent/seed_data.py` puis collecte (`python agent/main.py --full-run` ou menu) | ⚠️ seed effectué (**18 marques, 1 modèle**) via la Management API (voir note IPv6) ; collecte Gemini non lancée |
+| 2.10 | Retirer `agent/.env` du suivi Git (`git rm --cached agent/.env`) si encore versionné | ✅ |
 
 ---
 
@@ -42,9 +42,9 @@ Légende : ✅ fait · ⬜ à faire · 🔧 action manuelle (vous)
 | 3.2 | Routes `GET /api/stats`, `/api/brands`, `/api/brands/[name]`, `/api/models`, `/api/models/[id]`, `/api/search`, `/api/countries` | ✅ |
 | 3.3 | Proxy localhost désactivé par défaut (`USE_LOCAL_API=true` pour dev SQLite + `api.py`) | ✅ |
 | 3.4 | `@supabase/supabase-js` + `web/.env.example` | ✅ |
-| 3.5 | `cd web && npm install` | 🔧 |
-| 3.6 | Copier `web/.env.example` → `web/.env.local` avec les clés Supabase | 🔧 |
-| 3.7 | `npm run dev` et vérifier accueil / marques / modèles | 🔧 |
+| 3.5 | `cd web && npm install` | ✅ (@supabase présent) |
+| 3.6 | Copier `web/.env.example` → `web/.env.local` avec les clés Supabase | ✅ |
+| 3.7 | `npm run dev` et vérifier accueil / marques / modèles | ✅ (`/api/stats` renvoie 18 marques) |
 
 ---
 
@@ -53,9 +53,9 @@ Légende : ✅ fait · ⬜ à faire · 🔧 action manuelle (vous)
 | # | Tâche | Statut |
 |---|--------|--------|
 | 4.1 | Fichier `web/vercel.json` | ✅ |
-| 4.2 | Importer le repo sur [vercel.com](https://vercel.com) — **Root Directory : `web`** | 🔧 |
-| 4.3 | Variables d’environnement Vercel : `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` | 🔧 |
-| 4.4 | Premier déploiement + test URL de production | 🔧 |
+| 4.2 | Importer le repo sur [vercel.com](https://vercel.com) — **Root Directory : `web`** | ✅ via CLI (projet `autoencyclopedie`, root `web`) |
+| 4.3 | Variables d’environnement Vercel : `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` | ✅ (production + preview) |
+| 4.4 | Premier déploiement + test URL de production | ✅ https://autoencyclopedie.vercel.app |
 | 4.5 | (Optionnel) Domaine personnalisé | ⬜ |
 
 ---
@@ -105,4 +105,11 @@ npm run dev
 - `.gitignore` (racine)
 - `action.md` (ce fichier)
 
-_Dernière mise à jour : implémentation initiale Supabase + routes Next._
+_Dernière mise à jour : migration Supabase + déploiement Vercel effectués (2026-10-13)._
+
+## Note — accès réseau local à la base (IPv6)
+
+- Le projet Supabase expose la connexion Postgres **directe en IPv6 uniquement** (`db.vieafbhisxqfnkevcivn.supabase.co`, pas d'enregistrement A IPv4). L'agent Python (`psycopg`) a donc besoin d'une **sortie IPv6** sur la machine qui le lance.
+- Sur cette machine, l'IPv6 ne sort pas → le **seed a été exécuté via la Management API** (HTTPS/IPv4, rôle superuser) et non via psycopg direct.
+- Pour lancer `main.py --full-run` / le collecteur Gemini en local, soit activer le **pooler IPv4 (Supavisor)** dans *Supabase → Settings → Database → Connection pooling*, soit exécuter l'agent depuis une machine avec IPv4/IPv6 fonctionnel (ex. Vercel Cron / CI).
+- Le **site n'est pas concerné** : il passe par l'API REST Supabase (supabase-js, HTTPS/IPv4), qui fonctionne partout — vérifié en production.

@@ -45,17 +45,29 @@ python agent/main.py --collect-brand Toyota  # Une marque précise
 python agent/main.py --stats                 # Statistiques
 ```
 
-### 4. Démarrer l'API Python
+### 4. Mettre en ligne (recommandé) — Supabase + Vercel
+
+1. Créer un projet Supabase et exécuter `supabase/migrations/001_schema.sql`.
+2. Dans `agent/.env`, définir `DATABASE_URL` (URI Postgres Supabase).
+3. Collecter les données : `python agent/seed_data.py` puis `python agent/main.py --full-run`.
+4. Dans `web/.env.local`, configurer `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`.
+5. Déployer le dossier `web` sur Vercel (voir **`action.md`** pour la checklist complète).
+
+Le site appelle les **Route Handlers Next.js** (`/api/*`) qui lisent Supabase — plus besoin de `api.py` en production.
+
+### 5. Dev local (option SQLite legacy)
+
 ```bash
 python agent/api.py
-# API disponible sur http://localhost:8000
+# API sur http://localhost:8000
 ```
 
-### 5. Démarrer le site web
+Dans `web/.env.local` : `USE_LOCAL_API=true`, puis :
+
 ```bash
 cd web
 npm run dev
-# Site disponible sur http://localhost:3000
+# Site sur http://localhost:3000
 ```
 
 ## 🌐 API Endpoints

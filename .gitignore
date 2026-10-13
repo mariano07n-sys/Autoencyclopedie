@@ -1,0 +1,16 @@
+# Secrets
+agent/.env
+**/.env
+**/.env.local
+
+# Données locales
+data/
+*.db
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Node (racine si besoin)
+node_modules/

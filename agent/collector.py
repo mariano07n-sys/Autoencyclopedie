@@ -4,7 +4,6 @@ collector.py - Agent IA de collecte de données automobiles via Google Gemini
 
 import json
 import os
-import hashlib
 import time
 from typing import Optional, Dict, Any, List
 from datetime import datetime
@@ -15,8 +14,14 @@ from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from database import (
-    get_connection, upsert_brand, upsert_model, insert_spec,
-    get_brand_by_name, get_all_brands, get_database_stats
+    get_cached_result,
+    cache_result,
+    upsert_brand,
+    upsert_model,
+    insert_spec,
+    get_brand_by_name,
+    get_all_brands,
+    get_database_stats,
 )
 
 console = Console()
@@ -36,31 +41,6 @@ def configure_gemini(api_key: str):
             "response_mime_type": "application/json",
         }
     )
-
-
-# ──────────────────────────────────────────────
-# CACHE DES REQUÊTES
-# ──────────────────────────────────────────────
-
-def get_cached_result(query: str) -> Optional[str]:
-    query_hash = hashlib.md5(query.encode()).hexdigest()
-    conn = get_connection()
-    row = conn.execute(
-        "SELECT result FROM search_cache WHERE query_hash=?", (query_hash,)
-    ).fetchone()
-    conn.close()
-    return row[0] if row else None
-
-
-def cache_result(query: str, result: str, source: str = "gemini"):
-    query_hash = hashlib.md5(query.encode()).hexdigest()
-    conn = get_connection()
-    conn.execute(
-        "INSERT OR REPLACE INTO search_cache (query_hash, query, result, source) VALUES (?,?,?,?)",
-        (query_hash, query, result, source)
-    )
-    conn.commit()
-    conn.close()
 
 
 # ──────────────────────────────────────────────

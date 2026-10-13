@@ -13,7 +13,7 @@ export default function Reveal() {
           }
         }
       },
-      { threshold: 0.15 }
+      { threshold: 0, rootMargin: "0px 0px -60px 0px" }
     );
     document
       .querySelectorAll(".reveal-element:not(.is-visible), .blur-text-container:not(.is-visible)")

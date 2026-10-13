@@ -29,7 +29,7 @@ Légende : ✅ fait · ⬜ à faire · 🔧 action manuelle (vous)
 | 2.6 | `pip install -r agent/requirements.txt` | ✅ `.venv` créé ; psycopg+dotenv installés (complet requis pour le collecteur Gemini) |
 | 2.7 | Renseigner `DATABASE_URL` (URI Postgres Supabase) dans `agent/.env` | ✅ rôle dédié `agent_app` |
 | 2.8 | Initialiser le schéma | ✅ (tables + RLS présents) |
-| 2.9 | `python agent/seed_data.py` puis collecte (`python agent/main.py --full-run` ou menu) | ⚠️ seed effectué (**18 marques, 1 modèle**) via la Management API (voir note IPv6) ; collecte Gemini non lancée |
+| 2.9 | `python agent/seed_data.py` puis collecte (`python agent/main.py --full-run` ou menu) | ✅ seed (18 marques) via la Management API, puis **collecte Gemini en local via le pooler IPv4** : 193 marques + 197 modèles (9 marques traitées), stoppée par le quota gratuit (voir note quota) |
 | 2.10 | Retirer `agent/.env` du suivi Git (`git rm --cached agent/.env`) si encore versionné | ✅ |
 
 ---
@@ -64,13 +64,15 @@ Légende : ✅ fait · ⬜ à faire · 🔧 action manuelle (vous)
 
 | # | Tâche | Statut |
 |---|--------|--------|
-| 5.1 | Page `/timeline` (lien navbar actuel → 404) | ⬜ |
-| 5.2 | Pagination modèles (au-delà de 100 entrées) | ⬜ |
-| 5.3 | Collecte batch des fiches techniques (`specs`) dans `--full-run` | ⬜ |
+| 5.1 | Page `/timeline` (lien navbar actuel → 404) | ✅ `/timeline` + `/api/timeline` (groupement par décennie, filtre par chips) |
+| 5.2 | Pagination modèles (au-delà de 100 entrées) | ⚠️ limite `/api/models` relevée de 100 → 1000 ; vraie pagination (offset/cursor) non implémentée |
+| 5.3 | Collecte batch des fiches techniques (`specs`) dans `--full-run` | ✅ `--collect-specs` (icôniques d'abord, reprise auto) + enchaîné dans `--full-run` ; 32 variantes en base |
 | 5.4 | Alimenter `agent_tasks` pour le suivi de collecte | ⬜ |
 | 5.5 | Logos marques dans les prompts Gemini | ⬜ |
 | 5.6 | Script migration SQLite → Supabase (si ancienne `data/cars.db`) | ⬜ |
 | 5.7 | README web aligné sur Supabase / Vercel | ⬜ |
+| 5.8 | Images réelles (logos + photos) via Wikimedia Commons | 🔄 `agent/images.py` en cours (logos ~130/193, photos ensuite) |
+| 5.9 | Palette « Asphalte & Orange » | ✅ fond graphite `#141619`, surfaces `#1D2024`, navbar/recherche `#232629`, titres `#EDF0F2`, texte secondaire `#9AA3AC`, accents/boutons orange `#FF6B1A` (remplace la palette vert/crème testée le 2026-10-13) |
 
 ---
 
@@ -111,5 +113,13 @@ _Dernière mise à jour : migration Supabase + déploiement Vercel effectués (2
 
 - Le projet Supabase expose la connexion Postgres **directe en IPv6 uniquement** (`db.vieafbhisxqfnkevcivn.supabase.co`, pas d'enregistrement A IPv4). L'agent Python (`psycopg`) a donc besoin d'une **sortie IPv6** sur la machine qui le lance.
 - Sur cette machine, l'IPv6 ne sort pas → le **seed a été exécuté via la Management API** (HTTPS/IPv4, rôle superuser) et non via psycopg direct.
-- Pour lancer `main.py --full-run` / le collecteur Gemini en local, soit activer le **pooler IPv4 (Supavisor)** dans *Supabase → Settings → Database → Connection pooling*, soit exécuter l'agent depuis une machine avec IPv4/IPv6 fonctionnel (ex. Vercel Cron / CI).
+- **Résolu (2026-10-13)** : le pooler Supavisor **IPv4** fonctionne — hôte `aws-1-eu-west-3.pooler.supabase.com`, port 6543 (mode transaction), utilisateur `agent_app.vieafbhisxqfnkevcivn`. L'`agent/.env` (`DATABASE_URL`) pointe dessus, et l'agent écrit désormais directement dans Supabase.
 - Le **site n'est pas concerné** : il passe par l'API REST Supabase (supabase-js, HTTPS/IPv4), qui fonctionne partout — vérifié en production.
+
+## Note — quota Gemini (gratuit)
+
+- `gemini-1.5-flash`, `gemini-2.0-flash` et `gemini-2.5-flash` sont **retirés de l'API** (404). Le collecteur utilise `gemini-flash-latest` (surchargeable par `GEMINI_MODEL` dans `agent/.env`).
+- Le palier gratuit est limité à **20 requêtes/jour et par modèle** (`generate_content_free_tier_requests`). Une collecte complète (193 marques → modèles) demande donc une dizaine de jours, ou le passage à un facturation payante.
+- Les réponses sont mises en cache dans la table `search_cache` : relancer une requête déjà faite ne consomme pas de quota.
+- Premier chargement réel (2026-10-13) : **193 marques**, **197 modèles** sur 9 marques, puis `429 ResourceExhausted`.
+

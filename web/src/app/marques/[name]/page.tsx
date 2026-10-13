@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
+import ModelThumb from "@/components/ModelThumb";
 
 interface Brand {
   id: number;
@@ -71,7 +72,7 @@ export default function BrandPage() {
         {/* Brand Header */}
         <div
           style={{
-            background: "linear-gradient(180deg, rgba(232,160,32,0.08) 0%, transparent 100%)",
+            background: "linear-gradient(180deg, rgba(255,107,26,0.10) 0%, transparent 100%)",
             borderBottom: "1px solid var(--border-subtle)",
             padding: "60px 0 40px",
           }}
@@ -173,27 +174,7 @@ export default function BrandPage() {
                         className="card model-card animate-fadeInUp"
                         style={{ animationDelay: `${Math.min(i * 40, 600)}ms` }}
                       >
-                        {model.thumbnail_url ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={model.thumbnail_url}
-                            alt={`${brand.name} ${model.name}`}
-                            className="model-card-image"
-                          />
-                        ) : (
-                          <div
-                            className="model-card-image"
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              fontSize: "3rem",
-                              background: "var(--bg-surface)",
-                            }}
-                          >
-                            🚗
-                          </div>
-                        )}
+                        <ModelThumb src={model.thumbnail_url} alt={`${brand.name} ${model.name}`} />
                         <div className="model-card-body">
                           <div className="model-card-brand">{brand.name}</div>
                           <div className="model-card-name">{model.name} {model.generation !== "I" ? model.generation : ""}</div>

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 interface SearchResult {
   brands: { id: number; name: string; country: string }[];
@@ -13,7 +14,27 @@ export default function Navbar() {
   const [results, setResults] = useState<SearchResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
+  const [hidden, setHidden] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const pathname = usePathname();
+
+  useEffect(() => {
+    let lastY = window.scrollY;
+    const onScroll = () => {
+      const y = window.scrollY;
+      setScrolled(y > 32);
+      if (y > lastY + 6 && y > 220) setHidden(true);
+      else if (y < lastY - 6) setHidden(false);
+      lastY = y;
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  useEffect(() => {
+    setOpen(false);
+  }, [pathname]);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -48,7 +69,7 @@ export default function Navbar() {
   }, [query]);
 
   return (
-    <nav className="navbar">
+    <nav className={`navbar ${hidden ? "navbar-hidden" : ""} ${scrolled ? "navbar-scrolled" : ""}`}>
       <div className="navbar-inner reveal-element">
         {/* Logo */}
         <Link href="/" className="navbar-logo">
@@ -123,10 +144,20 @@ export default function Navbar() {
 
         {/* Nav Links */}
         <nav className="navbar-nav">
-          <Link href="/" className="nav-link">Accueil</Link>
-          <Link href="/marques" className="nav-link">Marques</Link>
-          <Link href="/modeles" className="nav-link">Modèles</Link>
-          <Link href="/timeline" className="nav-link">Timeline</Link>
+          {[
+            { href: "/", label: "Accueil" },
+            { href: "/marques", label: "Marques" },
+            { href: "/modeles", label: "Modèles" },
+            { href: "/timeline", label: "Timeline" },
+          ].map((l) => (
+            <Link
+              key={l.href}
+              href={l.href}
+              className={`nav-link ${pathname === l.href || (l.href !== "/" && pathname.startsWith(l.href)) ? "active" : ""}`}
+            >
+              {l.label}
+            </Link>
+          ))}
         </nav>
       </div>
     </nav>

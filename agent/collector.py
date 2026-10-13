@@ -16,6 +16,7 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 from database import (
     get_cached_result,
     cache_result,
+    get_models_for_specs,
     upsert_brand,
     upsert_model,
     insert_spec,
@@ -26,6 +27,14 @@ from database import (
 
 console = Console()
 
+SPEC_FIELDS = (
+    "variant_name", "engine_type", "engine_displacement", "fuel_type", "power_hp",
+    "power_kw", "torque_nm", "transmission", "drive_type", "cylinders",
+    "acceleration_0_100", "top_speed", "fuel_consumption", "co2_emissions", "weight_kg",
+    "length_mm", "width_mm", "height_mm", "wheelbase_mm", "trunk_volume",
+    "range_km", "price_launch_eur",
+)
+
 # ──────────────────────────────────────────────
 # CONFIGURATION GEMINI
 # ──────────────────────────────────────────────
@@ -33,11 +42,11 @@ console = Console()
 def configure_gemini(api_key: str):
     genai.configure(api_key=api_key)
     return genai.GenerativeModel(
-        model_name="gemini-1.5-flash",
+        model_name=os.getenv("GEMINI_MODEL", "gemini-flash-latest"),
         generation_config={
             "temperature": 0.2,
             "top_p": 0.95,
-            "max_output_tokens": 8192,
+            "max_output_tokens": 65536,
             "response_mime_type": "application/json",
         }
     )
@@ -59,9 +68,10 @@ Pour chaque marque, retourne un objet JSON avec les champs :
 - founded_year (integer): Année de fondation
 - founder (string): Nom du ou des fondateurs
 - headquarters (string): Siège social (ville, pays)
-- description (string): Description historique détaillée (300-500 mots) incluant l'histoire, les valeurs, les modèles phares
+- description (string): Description historique en 2-3 phrases (60 à 100 mots) : histoire, valeurs, modèles phares
 - is_active (boolean): Est-ce que la marque est encore active?
 
+Cible : au moins 250 marques distinctes, sans doublon ni variante de nom (ex: "BMW" une seule fois).
 Retourne un JSON avec la clé "brands" contenant un tableau de toutes ces marques.
 Inclus TOUTES les marques que tu connais, même les plus obscures.
 """
@@ -77,8 +87,8 @@ Pour chaque modèle, retourne un objet JSON avec :
 - year_end (integer ou null): Année de fin de production (null si toujours en production)
 - body_styles (array): Types de carrosseries ["Berline", "Cabriolet", "Coupé", "Break", "SUV", "Monospace", "Pick-up", "Roadster", "Spider"]
 - segment (string): Segment de marché ("A", "B", "C", "D", "E", "F", "Sport", "Supercar", "Hypercar", "SUV compact", "SUV medium", "SUV large", "Utilitaire", "Commercial")
-- description (string): Description complète du modèle (200-400 mots)
-- anecdotes (string): Anecdotes, records, faits marquants, contexte historique (100-200 mots)
+- description (string): Description du modèle en 3-4 phrases (60-100 mots)
+- anecdotes (string): Anecdotes, records, faits marquants (30-60 mots)
 - thumbnail_url (string): URL d'une image représentative (Wikipedia ou source fiable)
 - countries (array): Principaux pays de commercialisation
 - is_iconic (boolean): Modèle iconique ou emblématique?
@@ -254,13 +264,55 @@ class CarDataAgent:
         added = 0
         for spec_data in specs:
             try:
-                spec_data["model_id"] = model_id
-                insert_spec(spec_data)
+                spec = {field: spec_data.get(field) for field in SPEC_FIELDS}
+                # Une variante sans aucune donnée utile ferait croire que le modèle
+                # est déjà traité et bloquerait sa recompilation.
+                if not any(v is not None for k, v in spec.items() if k != "variant_name"):
+                    console.print(f"[yellow]    ⚠ Variante vide ignorée ({spec_data.get('variant_name', '?')})[/yellow]")
+                    continue
+                spec["model_id"] = model_id
+                insert_spec(spec)
                 added += 1
             except Exception as e:
                 console.print(f"[red]    ⚠ Erreur spec {spec_data.get('variant_name', '?')}: {e}[/red]")
 
         return added
+
+    def collect_specs_batch(self, limit: Optional[int] = None) -> int:
+        """Fiches techniques des modèles restants, iconiques d'abord.
+
+        S'arrête proprement quand le quota Gemini est atteint : les modèles déjà
+        traités étant ignorés, la commande peut être relancée chaque jour.
+        """
+        console.print("\n[bold blue]━━━ Phase 3 : Fiches techniques ━━━[/bold blue]")
+        targets = get_models_for_specs(limit=limit)
+        if not targets:
+            console.print("[green]✅ Chaque modèle a déjà sa fiche technique.[/green]")
+            return 0
+
+        total = 0
+        done = 0
+        for i, model in enumerate(targets, 1):
+            console.print(
+                f"[{i}/{len(targets)}] ⚙ {model['brand_name']} {model['name']} {model.get('generation') or ''}"
+            )
+            try:
+                total += self.collect_specs_for_model(
+                    model_id=model["id"],
+                    brand_name=model["brand_name"],
+                    model_name=model["name"],
+                    generation=model.get("generation") or "I",
+                    year_start=model.get("year_start"),
+                    year_end=model.get("year_end"),
+                )
+                done += 1
+            except Exception as exc:
+                console.print(f"[red]⛔ Arrêt de la collecte : {str(exc)[:200]}[/red]")
+                console.print("[yellow]Relancez plus tard : les modèles déjà traités sont sautés.[/yellow]")
+                break
+
+        console.print(f"[green]✅ {total} variantes enregistrées ({done} modèles traités).[/green]")
+        return total
 
     # ── RAPPORT DE PROGRESSION ──
 

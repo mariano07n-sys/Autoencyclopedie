@@ -263,6 +263,58 @@ def get_models_by_brand(brand_id: int) -> List[Dict]:
     return result
 
 
+def get_models_for_media() -> List[Dict]:
+    conn = get_connection()
+    rows = conn.execute(
+        """
+        SELECT m.id, m.name, m.generation, m.year_start, m.year_end,
+               m.thumbnail_url, b.name AS brand_name
+        FROM models m JOIN brands b ON b.id = m.brand_id
+        ORDER BY b.name, m.year_start
+        """
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def update_brand_logo(brand_id: int, logo_url: Optional[str]):
+    conn = get_connection()
+    conn.execute(
+        "UPDATE brands SET logo_url=?, updated_at=CURRENT_TIMESTAMP WHERE id=?",
+        (logo_url, brand_id),
+    )
+    conn.commit()
+    conn.close()
+
+
+def update_model_images(model_id: int, thumbnail_url: Optional[str], image_urls: List[str]):
+    conn = get_connection()
+    conn.execute(
+        "UPDATE models SET thumbnail_url=?, image_urls=?, updated_at=CURRENT_TIMESTAMP WHERE id=?",
+        (thumbnail_url, json.dumps(image_urls or [], ensure_ascii=False), model_id),
+    )
+    conn.commit()
+    conn.close()
+
+
+def get_models_for_specs(limit: Optional[int] = None) -> List[Dict]:
+    sql = """
+        SELECT m.id, m.name, m.generation, m.year_start, m.year_end, m.is_iconic,
+               b.name AS brand_name
+        FROM models m JOIN brands b ON b.id = m.brand_id
+        WHERE NOT EXISTS (SELECT 1 FROM specs s WHERE s.model_id = m.id)
+        ORDER BY m.is_iconic DESC, b.name, m.year_start
+    """
+    params: tuple = ()
+    if limit:
+        sql += " LIMIT ?"
+        params = (limit,)
+    conn = get_connection()
+    rows = conn.execute(sql, params).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
 def insert_spec(data: Dict[str, Any]) -> int:
     conn = get_connection()
     cursor = conn.cursor()

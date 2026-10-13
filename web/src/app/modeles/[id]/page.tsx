@@ -100,15 +100,19 @@ export default function ModelPage() {
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
+              key={activeImage}
               src={images[activeImage]}
               alt={`${model.brand_name} ${model.name}`}
               style={{ width: "100%", height: "100%", objectFit: "cover" }}
+              onError={(e) => {
+                e.currentTarget.style.visibility = "hidden";
+              }}
             />
             <div
               style={{
                 position: "absolute",
                 inset: 0,
-                background: "linear-gradient(to top, rgba(5,8,16,0.8) 0%, transparent 50%)",
+                background: "linear-gradient(to top, rgba(20,22,25,0.85) 0%, transparent 50%)",
               }}
             />
             {images.length > 1 && (
@@ -130,7 +134,7 @@ export default function ModelPage() {
                       width: i === activeImage ? 24 : 8,
                       height: 8,
                       borderRadius: 4,
-                      background: i === activeImage ? "var(--accent-primary)" : "rgba(255,255,255,0.4)",
+                      background: i === activeImage ? "var(--accent-primary)" : "rgba(237,240,242,0.35)",
                       border: "none",
                       cursor: "pointer",
                       transition: "all 0.3s",
@@ -198,7 +202,7 @@ export default function ModelPage() {
 
               {/* Anecdotes */}
               {model.anecdotes && (
-                <div className="glass-panel" style={{ marginBottom: 24, borderColor: "rgba(232,160,32,0.2)" }}>
+                <div className="glass-panel" style={{ marginBottom: 24, borderColor: "var(--border-accent)" }}>
                   <h3 style={{ marginBottom: 16, color: "var(--accent-primary)" }}>⚡ Le savais-tu ?</h3>
                   <p style={{ color: "var(--text-secondary)", lineHeight: 1.9, fontStyle: "italic" }}>
                     {model.anecdotes}
@@ -220,8 +224,8 @@ export default function ModelPage() {
                           className={`tag ${i === activeSpec ? "tag-gold" : ""}`}
                           style={{
                             cursor: "pointer",
-                            border: i === activeSpec ? "1px solid rgba(232,160,32,0.3)" : "1px solid var(--border-subtle)",
-                            background: i === activeSpec ? "rgba(232,160,32,0.15)" : "var(--bg-glass)",
+                            border: i === activeSpec ? "1px solid rgba(255,107,26,0.45)" : "1px solid var(--border-subtle)",
+                            background: i === activeSpec ? "rgba(255,107,26,0.16)" : "var(--bg-glass)",
                             color: i === activeSpec ? "var(--accent-primary)" : "var(--text-secondary)",
                             padding: "6px 14px",
                             borderRadius: "50px",

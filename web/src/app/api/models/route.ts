@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
     .from("models")
     .select("*, brands!inner(name)")
     .order("year_start")
-    .limit(100);
+    .limit(1000);
 
   if (brandId) query = query.eq("brand_id", Number(brandId));
   if (yearFrom) query = query.gte("year_start", Number(yearFrom));

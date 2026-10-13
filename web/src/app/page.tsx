@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import BlurWords from "@/components/BlurWords";
+import ModelThumb from "@/components/ModelThumb";
 import Reveal from "@/components/Reveal";
 
 interface Stats {
@@ -120,7 +121,7 @@ export default function HomePage() {
           {loading ? (
             <div className="grid-brands">
               {Array.from({ length: 12 }).map((_, i) => (
-                <div key={i} className="card" style={{ height: 160 }}>
+                <div key={i} className="card" style={{ height: 236 }}>
                   <div className="skeleton" style={{ width: "100%", height: "100%" }} />
                 </div>
               ))}
@@ -191,27 +192,7 @@ export default function HomePage() {
                     className="card model-card animate-fadeInUp"
                     style={{ animationDelay: `${i * 80}ms` }}
                   >
-                    {model.thumbnail_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={model.thumbnail_url}
-                        alt={`${model.brand_name} ${model.name}`}
-                        className="model-card-image"
-                      />
-                    ) : (
-                      <div
-                        className="model-card-image"
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          fontSize: "3rem",
-                          background: "var(--bg-surface)",
-                        }}
-                      >
-                        🚗
-                      </div>
-                    )}
+                    <ModelThumb src={model.thumbnail_url} alt={`${model.brand_name} ${model.name}`} />
                     <div className="model-card-body">
                       <div className="model-card-brand">{model.brand_name}</div>
                       <div className="model-card-name">{model.name}</div>
@@ -283,7 +264,7 @@ export default function HomePage() {
                     fontFamily: "Outfit, sans-serif",
                     fontSize: "2.5rem",
                     fontWeight: 900,
-                    color: "rgba(255,255,255,0.04)",
+                    color: "rgba(237,240,242,0.05)",
                     lineHeight: 1,
                   }}
                 >

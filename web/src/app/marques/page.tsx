@@ -129,7 +129,7 @@ export default function MarquesPage() {
           {loading ? (
             <div className="grid-brands">
               {Array.from({ length: 24 }).map((_, i) => (
-                <div key={i} className="skeleton" style={{ height: 160, borderRadius: "var(--radius-md)" }} />
+                <div key={i} className="skeleton" style={{ height: 236, borderRadius: "var(--radius-md)" }} />
               ))}
             </div>
           ) : filtered.length > 0 ? (

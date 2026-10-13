@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
+import ModelThumb from "@/components/ModelThumb";
 import Reveal from "@/components/Reveal";
 
 interface Model {
@@ -136,7 +137,7 @@ export default function ModelesPage() {
           {loading ? (
             <div className="grid-models">
               {Array.from({ length: 12 }).map((_, i) => (
-                <div key={i} className="skeleton" style={{ height: 280, borderRadius: "var(--radius-md)" }} />
+                <div key={i} className="skeleton" style={{ height: 318, borderRadius: "var(--radius-md)" }} />
               ))}
             </div>
           ) : filtered.length > 0 ? (
@@ -144,14 +145,7 @@ export default function ModelesPage() {
               {filtered.map((model, i) => (
                 <Link key={model.id} href={`/modeles/${model.id}`}>
                   <div className="card model-card animate-fadeInUp" style={{ animationDelay: `${Math.min(i * 30, 600)}ms` }}>
-                    {model.thumbnail_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={model.thumbnail_url} alt={`${model.brand_name} ${model.name}`} className="model-card-image" />
-                    ) : (
-                      <div className="model-card-image" style={{ display: "flex", alignItems: "center", justifyContent: "center", fontSize: "3rem", background: "var(--bg-surface)" }}>
-                        🚗
-                      </div>
-                    )}
+                    <ModelThumb src={model.thumbnail_url} alt={`${model.brand_name} ${model.name}`} />
                     <div className="model-card-body">
                       <div className="model-card-brand">{model.brand_name}</div>
                       <div className="model-card-name">{model.name}</div>

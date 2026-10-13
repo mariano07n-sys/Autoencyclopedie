@@ -5,6 +5,8 @@ Usage:
     python main.py --collect-brands       # Collecter toutes les marques
     python main.py --collect-models       # Collecter tous les modèles
     python main.py --collect-brand Toyota # Modèles d'une marque précise
+    python main.py --collect-specs        # Fiches techniques (modèles iconiques d'abord)
+    python main.py --collect-images       # Logos + photos via Wikimedia Commons (sans Gemini)
     python main.py --stats                # Afficher les statistiques
     python main.py --full-run             # Lancer la collecte complète
 """
@@ -121,14 +123,24 @@ def main():
     parser.add_argument("--collect-brands", action="store_true", help="Collecter toutes les marques")
     parser.add_argument("--collect-models", action="store_true", help="Collecter tous les modèles")
     parser.add_argument("--collect-brand", type=str, metavar="BRAND", help="Modèles d'une marque précise")
+    parser.add_argument("--collect-specs", action="store_true", help="Collecter les fiches techniques")
+    parser.add_argument("--collect-images", action="store_true", help="Logos + photos (Wikimedia Commons)")
     parser.add_argument("--stats", action="store_true", help="Afficher les statistiques")
     parser.add_argument("--full-run", action="store_true", help="Collecte complète (marques + modèles)")
-    parser.add_argument("--limit", type=int, default=None, help="Limiter le nombre de marques à traiter")
+    parser.add_argument("--limit", type=int, default=None, help="Limiter le nombre d'entités à traiter")
 
     args = parser.parse_args()
 
     # Obtenir la clé API
     api_key = get_api_key()
+
+    if args.collect_images:
+        import images
+
+        images.enrich_logos(args.limit)
+        images.enrich_photos(args.limit)
+        return
+
     agent = CarDataAgent(api_key=api_key)
 
     if args.stats:
@@ -140,6 +152,9 @@ def main():
     elif args.collect_models:
         agent.collect_all_models(limit=args.limit)
 
+    elif args.collect_specs:
+        agent.collect_specs_batch(limit=args.limit)
+
     elif args.collect_brand:
         agent.collect_models_for_brand(args.collect_brand)
 
@@ -147,6 +162,7 @@ def main():
         console.print("[bold green]🚀 Collecte complète lancée...[/bold green]")
         agent.collect_brands()
         agent.collect_all_models(limit=args.limit)
+        agent.collect_specs_batch(limit=args.limit)
         agent.print_stats()
 
     else:

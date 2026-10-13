@@ -60,6 +60,12 @@ def initialize_database():
     with open(migration, encoding="utf-8") as f:
         sql = f.read()
     with get_connection() as conn:
+        exists = conn.execute(
+            "SELECT to_regclass('public.brands') IS NOT NULL AS ok"
+        ).fetchone()["ok"]
+        if exists:
+            print("✅ Schéma PostgreSQL déjà en place (Supabase).")
+            return
         conn.execute(sql)
         conn.commit()
     print("✅ Schéma PostgreSQL appliqué (Supabase).")
@@ -191,6 +197,65 @@ def get_models_by_brand(brand_id: int) -> List[Dict]:
             {"id": brand_id},
         ).fetchall()
     return [_parse_model_row(dict(r)) for r in rows]
+
+
+def get_models_for_media() -> List[Dict]:
+    with get_connection() as conn:
+        rows = conn.execute(
+            """
+            SELECT m.id, m.name, m.generation, m.year_start, m.year_end,
+                   m.thumbnail_url, b.name AS brand_name
+            FROM models m JOIN brands b ON b.id = m.brand_id
+            ORDER BY b.name, m.year_start
+            """
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def update_brand_logo(brand_id: int, logo_url: Optional[str]):
+    with get_connection() as conn:
+        conn.execute(
+            "UPDATE brands SET logo_url = %(url)s, updated_at = NOW() WHERE id = %(id)s",
+            {"url": logo_url, "id": brand_id},
+        )
+        conn.commit()
+
+
+def update_model_images(model_id: int, thumbnail_url: Optional[str], image_urls: List[str]):
+    with get_connection() as conn:
+        conn.execute(
+            """
+            UPDATE models
+               SET thumbnail_url = %(thumb)s,
+                   image_urls = %(urls)s::jsonb,
+                   updated_at = NOW()
+             WHERE id = %(id)s
+            """,
+            {
+                "thumb": thumbnail_url,
+                "urls": json.dumps(image_urls or [], ensure_ascii=False),
+                "id": model_id,
+            },
+        )
+        conn.commit()
+
+
+def get_models_for_specs(limit: Optional[int] = None) -> List[Dict]:
+    """Modèles sans fiche technique, iconiques d'abord (permet de reprendre après un quota atteint)."""
+    sql = """
+        SELECT m.id, m.name, m.generation, m.year_start, m.year_end, m.is_iconic,
+               b.name AS brand_name
+        FROM models m JOIN brands b ON b.id = m.brand_id
+        WHERE NOT EXISTS (SELECT 1 FROM specs s WHERE s.model_id = m.id)
+        ORDER BY m.is_iconic DESC NULLS LAST, b.name, m.year_start
+    """
+    params: Dict[str, Any] = {}
+    if limit:
+        sql += " LIMIT %(limit)s"
+        params["limit"] = limit
+    with get_connection() as conn:
+        rows = conn.execute(sql, params).fetchall()
+    return [dict(r) for r in rows]
 
 
 def insert_spec(data: Dict[str, Any]) -> int:

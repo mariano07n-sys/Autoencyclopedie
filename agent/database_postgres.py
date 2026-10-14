@@ -50,6 +50,14 @@ def cache_result(query: str, result: str, source: str = "gemini"):
         conn.commit()
 
 
+def invalidate_cached_result(query: str) -> None:
+    """Oublie une réponse mémorisée illisible, pour que la marque soit ré-interrogée."""
+    query_hash = hashlib.md5(query.encode()).hexdigest()
+    with get_connection() as conn:
+        conn.execute("DELETE FROM search_cache WHERE query_hash = %(h)s", {"h": query_hash})
+        conn.commit()
+
+
 def initialize_database():
     migration = os.path.join(
         os.path.dirname(__file__), "..", "supabase", "migrations", "001_schema.sql"
@@ -119,6 +127,22 @@ def get_brand_by_name(name: str) -> Optional[Dict]:
             {"name": name},
         ).fetchone()
     return dict(row) if row else None
+
+
+def get_brands_without_models(limit: Optional[int] = None) -> List[Dict]:
+    """Marques n'ayant encore aucun modèle : chaque vague consomme du quota neuf."""
+    sql = """
+        SELECT b.* FROM brands b
+        WHERE NOT EXISTS (SELECT 1 FROM models m WHERE m.brand_id = b.id)
+        ORDER BY b.name
+    """
+    params: Dict[str, Any] = {}
+    if limit:
+        sql += " LIMIT %(limit)s"
+        params["limit"] = limit
+    with get_connection() as conn:
+        rows = conn.execute(sql, params).fetchall()
+    return [dict(r) for r in rows]
 
 
 def _json_val(value: Any) -> str:

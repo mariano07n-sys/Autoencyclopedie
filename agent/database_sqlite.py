@@ -150,6 +150,15 @@ def cache_result(query: str, result: str, source: str = "gemini"):
     conn.close()
 
 
+def invalidate_cached_result(query: str) -> None:
+    """Oublie une réponse mémorisée illisible, pour que la marque soit ré-interrogée."""
+    query_hash = hashlib.md5(query.encode()).hexdigest()
+    conn = get_connection()
+    conn.execute("DELETE FROM search_cache WHERE query_hash=?", (query_hash,))
+    conn.commit()
+    conn.close()
+
+
 def upsert_brand(data: Dict[str, Any]) -> int:
     conn = get_connection()
     cursor = conn.cursor()
@@ -193,6 +202,19 @@ def get_brand_by_name(name: str) -> Optional[Dict]:
     row = conn.execute("SELECT * FROM brands WHERE name=? COLLATE NOCASE", (name,)).fetchone()
     conn.close()
     return dict(row) if row else None
+
+
+def get_brands_without_models(limit: Optional[int] = None) -> List[Dict]:
+    """Marques n'ayant encore aucun modèle : chaque vague consomme du quota neuf."""
+    sql = """
+        SELECT b.* FROM brands b
+        WHERE NOT EXISTS (SELECT 1 FROM models m WHERE m.brand_id = b.id)
+        ORDER BY b.name
+    """
+    conn = get_connection()
+    rows = conn.execute(sql + (" LIMIT ?" if limit else ""), ((limit,) if limit else ())).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
 
 
 def upsert_model(data: Dict[str, Any]) -> int:

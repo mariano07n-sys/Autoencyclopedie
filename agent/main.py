@@ -11,8 +11,6 @@ Usage:
     python main.py --full-run             # Lancer la collecte complète
 """
 
-import os
-import sys
 import argparse
 from dotenv import load_dotenv
 from rich.console import Console
@@ -30,23 +28,10 @@ BANNER = """
 [bold cyan]
 ╔══════════════════════════════════════════════════════════════╗
 ║        🚗  AGENT IA - ENCYCLOPÉDIE AUTOMOBILE  🚗            ║
-║           Powered by Google Gemini Pro                       ║
+║           Collecte IA : Gemini + NVIDIA                      ║
 ╚══════════════════════════════════════════════════════════════╝
 [/bold cyan]
 """
-
-
-def get_api_key() -> str:
-    """Récupère la clé API Gemini depuis l'environnement ou la demande à l'utilisateur."""
-    api_key = os.getenv("GEMINI_API_KEY")
-    if not api_key:
-        console.print("[yellow]⚠ Variable GEMINI_API_KEY non trouvée dans .env[/yellow]")
-        api_key = Prompt.ask("🔑 Entrez votre clé API Google Gemini")
-        # Sauvegarder dans .env
-        with open(".env", "a") as f:
-            f.write(f"\nGEMINI_API_KEY={api_key}\n")
-        console.print("[green]✅ Clé API sauvegardée dans .env[/green]")
-    return api_key
 
 
 def interactive_menu(agent: CarDataAgent):
@@ -128,11 +113,10 @@ def main():
     parser.add_argument("--stats", action="store_true", help="Afficher les statistiques")
     parser.add_argument("--full-run", action="store_true", help="Collecte complète (marques + modèles)")
     parser.add_argument("--limit", type=int, default=None, help="Limiter le nombre d'entités à traiter")
+    parser.add_argument("--backend", choices=["gemini", "nvidia"], default=None,
+                        help="Fournisseur IA (défaut: AGENT_LLM_BACKEND ou gemini)")
 
     args = parser.parse_args()
-
-    # Obtenir la clé API
-    api_key = get_api_key()
 
     if args.collect_images:
         import images
@@ -141,7 +125,7 @@ def main():
         images.enrich_photos(args.limit)
         return
 
-    agent = CarDataAgent(api_key=api_key)
+    agent = CarDataAgent(backend=args.backend)
 
     if args.stats:
         agent.print_stats()

@@ -1,5 +1,5 @@
 """
-collector.py - Agent IA de collecte de données automobiles via Google Gemini
+collector.py - Agent IA de collecte de données automobiles (Gemini ou NVIDIA)
 """
 
 import json
@@ -9,6 +9,7 @@ from typing import Optional, Dict, Any, List
 from datetime import datetime
 
 import google.generativeai as genai
+import requests
 from tenacity import retry, stop_after_attempt, wait_exponential
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
@@ -16,16 +17,23 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 from database import (
     get_cached_result,
     cache_result,
+    invalidate_cached_result,
     get_models_for_specs,
+    get_brands_without_models,
     upsert_brand,
     upsert_model,
     insert_spec,
     get_brand_by_name,
-    get_all_brands,
     get_database_stats,
 )
 
 console = Console()
+
+
+def _log_retry(state):
+    """Rend les pannes intermittentes des fournisseurs lisibles dans les journaux de vague."""
+    error = state.outcome.exception()
+    console.print(f"[yellow]   ↺ Tentative {state.attempt_number} : {str(error)[:160]}[/yellow]")
 
 SPEC_FIELDS = (
     "variant_name", "engine_type", "engine_displacement", "fuel_type", "power_hp",
@@ -36,20 +44,126 @@ SPEC_FIELDS = (
 )
 
 # ──────────────────────────────────────────────
-# CONFIGURATION GEMINI
+# FOURISSEURS DE LANGAGE (2 budgets de quota distincts)
 # ──────────────────────────────────────────────
 
-def configure_gemini(api_key: str):
-    genai.configure(api_key=api_key)
-    return genai.GenerativeModel(
-        model_name=os.getenv("GEMINI_MODEL", "gemini-flash-latest"),
-        generation_config={
-            "temperature": 0.2,
-            "top_p": 0.95,
-            "max_output_tokens": 65536,
-            "response_mime_type": "application/json",
-        }
-    )
+class GeminiProvider:
+    label = "Gemini"
+
+    def __init__(self, api_key: str):
+        genai.configure(api_key=api_key)
+        self.model = genai.GenerativeModel(
+            model_name=os.getenv("GEMINI_MODEL", "gemini-flash-latest"),
+            generation_config={
+                "temperature": 0.2,
+                "top_p": 0.95,
+                "max_output_tokens": 65536,
+                "response_mime_type": "application/json",
+            }
+        )
+
+    def generate(self, prompt: str) -> str:
+        return self.model.generate_content(prompt).text
+
+
+class NvidiaProvider:
+    """Endpoint compatible OpenAI de NVIDIA : quota indépendant de Gemini.
+
+    Le service est capricieux (401 et timeouts intermittents) : les réponses
+    vides ou les codes d'erreur remontent en exception pour déclencher le retry.
+    """
+
+    label = "NVIDIA"
+    URL = "https://integrate.api.nvidia.com/v1/chat/completions"
+    SYSTEM = "Tu réponds exclusivement par un objet JSON valide, sans markdown ni texte autour."
+
+    def __init__(self, api_key: str):
+        self.api_key = api_key
+        self.model = os.getenv("NVIDIA_MODEL", "openai/gpt-oss-20b")
+
+    def generate(self, prompt: str) -> str:
+        response = requests.post(
+            self.URL,
+            headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"},
+            json={
+                "model": self.model,
+                "messages": [
+                    {"role": "system", "content": self.SYSTEM},
+                    {"role": "user", "content": prompt},
+                ],
+                "temperature": 0.2,
+                "top_p": 0.95,
+                # 8000 suffisait pour les petites marques mais tronquait BMW/Mercedes,
+                # ce qui rendait toute la réponse inexploitable.
+                "max_tokens": int(os.getenv("NVIDIA_MAX_TOKENS", 20000)),
+                # Sans cette option, gpt-oss consomme tout le budget en « reasoning »
+                # et renvoie un contenu vide.
+                "reasoning_effort": os.getenv("NVIDIA_REASONING_EFFORT", "low"),
+            },
+            timeout=240,
+        )
+        if response.status_code != 200:
+            raise RuntimeError(f"NVIDIA {response.status_code} : {response.text[:150]}")
+        body = response.json()
+        choices = body.get("choices") or []
+        content = (choices[0].get("message") or {}).get("content") if choices else None
+        if not content:
+            raise RuntimeError("Réponse NVIDIA vide")
+        usage = body.get("usage") or {}
+        if usage.get("completion_tokens"):
+            console.print(f"[dim]   ⤳ {usage['completion_tokens']} tokens générés[/dim]")
+        return content
+
+
+def _extract_json(raw: str) -> Optional[Any]:
+    """Extrait l'objet JSON d'une réponse, fenced ou encadrée de prose. None si illisible."""
+    text = raw.strip()
+    if "```json" in text:
+        text = text.split("```json", 1)[1]
+    if "```" in text:
+        text = text.split("```", 1)[1]
+    text = text.strip()
+
+    candidates = [text]
+    start, end = text.find("{"), text.rfind("}")
+    if 0 <= start < end:
+        candidates.append(text[start:end + 1])
+    start, end = text.find("["), text.rfind("]")
+    if 0 <= start < end:
+        candidates.append(text[start:end + 1])
+
+    for candidate in candidates:
+        try:
+            data = json.loads(candidate)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(data, (dict, list)):
+            return data
+    return None
+
+
+def _is_empty_result(data: Any) -> bool:
+    """{"models": []} : le modèle n'a rien proposé — ni à cacher, ni à tenir la marque pour traitée."""
+    if isinstance(data, list):
+        return not data
+    if isinstance(data, dict):
+        return bool(data) and all(
+            isinstance(v, list) and not v for v in data.values()
+        )
+    return True
+
+
+def build_provider(backend: str) -> Any:
+    backend = (backend or os.getenv("AGENT_LLM_BACKEND", "gemini")).lower()
+    if backend == "nvidia":
+        api_key = os.getenv("NVIDIA_API_KEY")
+        if not api_key:
+            raise SystemExit("❌ NVIDIA_API_KEY absente de agent/.env (backend 'nvidia' demandé).")
+        return NvidiaProvider(api_key)
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        raise SystemExit("❌ GEMINI_API_KEY absente de agent/.env.")
+    return GeminiProvider(api_key)
 
 
 # ──────────────────────────────────────────────
@@ -134,41 +248,45 @@ Retourne un JSON avec la clé "specs" contenant un tableau de toutes les variant
 # ──────────────────────────────────────────────
 
 class CarDataAgent:
-    def __init__(self, api_key: str):
-        self.model = configure_gemini(api_key)
-        console.print("[bold green]🤖 Agent IA Automobile initialisé avec Gemini Pro[/bold green]")
+    def __init__(self, backend: Optional[str] = None):
+        self.provider = build_provider(backend)
+        console.print(f"[bold green]🤖 Agent IA Automobile initialisé avec {self.provider.label}[/bold green]")
 
-    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=2, min=4, max=30))
-    def _call_gemini(self, prompt: str) -> str:
-        """Appelle l'API Gemini avec retry automatique."""
-        cached = get_cached_result(prompt[:200])
+    @retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=3, min=6, max=45),
+           before_sleep=_log_retry)
+    def _call_llm(self, prompt: str) -> str:
+        """Appelle le fournisseur avec retry automatique (quota, 401 et timeouts intermittents)."""
+        key = prompt[:200]
+        cached = get_cached_result(key)
         if cached:
-            console.print("[dim]   ↩ Résultat depuis le cache[/dim]")
-            return cached
+            data = _extract_json(cached)
+            if data is not None and not _is_empty_result(data):
+                console.print("[dim]   ↩ Résultat depuis le cache[/dim]")
+                return cached
+            # Réponse coupée ou vide mémorisée par une vague précédente.
+            console.print("[yellow]   ⚠ Cache inexploitable, ré-interrogé[/yellow]")
+            invalidate_cached_result(key)
 
-        response = self.model.generate_content(prompt)
-        result = response.text
-        cache_result(prompt[:200], result)
+        result = self.provider.generate(prompt)
+        data = _extract_json(result)
+        # Une prose, un objet tronqué ou une liste vide ne doivent pas immobiliser le
+        # cache : ils resserviraient à chaque vague et bloqueraient la marque.
+        if data is None or _is_empty_result(data):
+            raise RuntimeError(f"Réponse inexploitable : {result[:120]}")
+        cache_result(key, result, source=self.provider.label.lower())
         return result
 
     def _parse_json(self, raw: str, key: str) -> List[Dict]:
-        """Parse le JSON retourné par Gemini."""
-        try:
-            # Nettoyer le JSON si nécessaire
-            if "```json" in raw:
-                raw = raw.split("```json")[1].split("```")[0].strip()
-            elif "```" in raw:
-                raw = raw.split("```")[1].split("```")[0].strip()
-
-            data = json.loads(raw)
-            if key in data:
-                return data[key]
-            if isinstance(data, list):
-                return data
-            return [data]
-        except json.JSONDecodeError as e:
-            console.print(f"[red]⚠ Erreur JSON : {e}[/red]")
+        """Parse le JSON retourné par le modèle."""
+        data = _extract_json(raw)
+        if data is None:
+            console.print("[red]⚠ Erreur JSON : réponse du modèle illisible[/red]")
             return []
+        if isinstance(data, list):
+            return data
+        if key in data:
+            return data[key]
+        return [data]
 
     # ── COLLECTE DES MARQUES ──
 
@@ -176,7 +294,7 @@ class CarDataAgent:
         """Collecte et stocke toutes les marques automobiles."""
         console.print("\n[bold blue]━━━ Phase 1 : Collecte des Marques ━━━[/bold blue]")
         
-        raw = self._call_gemini(BRANDS_COLLECTION_PROMPT)
+        raw = self._call_llm(BRANDS_COLLECTION_PROMPT)
         brands = self._parse_json(raw, "brands")
 
         if not brands:
@@ -214,12 +332,20 @@ class CarDataAgent:
             country=brand.get("country", "?")
         )
 
-        raw = self._call_gemini(prompt)
+        raw = self._call_llm(prompt)
         models = self._parse_json(raw, "models")
 
         added = 0
         for model_data in models:
             try:
+                year = model_data.get("year_start")
+                # gpt-oss a daté des Autobianchi A112 en 2028/2032 : rien de futuriste
+                # n'est jamais rentré dans l'encyclopédie.
+                if isinstance(year, int) and year > datetime.now().year + 1:
+                    console.print(
+                        f"[yellow]    ⚠ Année aberrante ({year}) ignorée : {model_data.get('name')}[/yellow]"
+                    )
+                    continue
                 model_data["brand_id"] = brand["id"]
                 upsert_model(model_data)
                 added += 1
@@ -231,16 +357,21 @@ class CarDataAgent:
         return added
 
     def collect_all_models(self, limit: Optional[int] = None):
-        """Collecte les modèles pour toutes les marques en base."""
+        """Collecte les modèles des marques encore vierges (les vagues suivantes reprennent ailleurs)."""
         console.print("\n[bold blue]━━━ Phase 2 : Collecte des Modèles ━━━[/bold blue]")
-        brands = get_all_brands()
-        if limit:
-            brands = brands[:limit]
+        brands = get_brands_without_models(limit=limit)
+        if not brands:
+            console.print("[green]✅ Chaque marque a déjà ses modèles.[/green]")
+            return
 
         total_models = 0
         for i, brand in enumerate(brands, 1):
             console.print(f"[{i}/{len(brands)}] ", end="")
-            total_models += self.collect_models_for_brand(brand["name"])
+            try:
+                total_models += self.collect_models_for_brand(brand["name"])
+            except Exception as exc:
+                # Marque non cacheable (quota, 401, JSON invalide) : on passe à la suivante.
+                console.print(f"[red] ⛔ {brand['name']} : {str(exc)[:150]}[/red]")
 
         console.print(f"\n[green]✅ Total : {total_models} modèles collectés.[/green]")
 
@@ -258,7 +389,7 @@ class CarDataAgent:
             year_end=year_end or "présent"
         )
 
-        raw = self._call_gemini(prompt)
+        raw = self._call_llm(prompt)
         specs = self._parse_json(raw, "specs")
 
         added = 0

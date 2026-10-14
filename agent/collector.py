@@ -43,6 +43,10 @@ SPEC_FIELDS = (
     "range_km", "price_launch_eur",
 )
 
+# Le premier automobile date de 1886 : toute année hors de cette borne est un
+# hallucinée du LLM, pas une donnée d'encyclopédie.
+FIRST_CAR_YEAR = 1886
+
 # ──────────────────────────────────────────────
 # FOURISSEURS DE LANGAGE (2 budgets de quota distincts)
 # ──────────────────────────────────────────────
@@ -347,13 +351,19 @@ class CarDataAgent:
                 continue
             try:
                 year = model_data.get("year_start")
-                # gpt-oss a daté des Autobianchi A112 en 2028/2032 : rien de futuriste
-                # n'est jamais rentré dans l'encyclopédie.
-                if isinstance(year, int) and year > datetime.now().year + 1:
+                # gpt-oss a daté des Autobianchi A112 en 2032 et des Holden
+                # « 48-215 » en 1856 : une année invraisemblable est effacée,
+                # la fiche garde tout le reste plutôt que d'être jetée.
+                if isinstance(year, int) and not FIRST_CAR_YEAR <= year <= datetime.now().year + 1:
                     console.print(
-                        f"[yellow]    ⚠ Année aberrante ({year}) ignorée : {model_data.get('name')}[/yellow]"
+                        f"[yellow]    ⚠ Année invraisemblable ({year}) rendue « inconnue » : "
+                        f"{model_data.get('name')}[/yellow]"
                     )
-                    continue
+                    model_data["year_start"] = None
+                    model_data["year_end"] = None
+                year_end = model_data.get("year_end")
+                if isinstance(year_end, int) and not (FIRST_CAR_YEAR <= year_end <= datetime.now().year + 1):
+                    model_data["year_end"] = None
                 model_data["brand_id"] = brand["id"]
                 upsert_model(model_data)
                 added += 1

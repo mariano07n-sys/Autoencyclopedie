@@ -45,7 +45,7 @@ export default function TimelinePage() {
     <>
       <Navbar />
       <Reveal />
-      <div style={{ paddingTop: 100 }}>
+      <div className="page-offset-lg">
         <div className="container">
           <div className="section-header animate-fadeInUp">
             <span className="section-label">Chronologie</span>

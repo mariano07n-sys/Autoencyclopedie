@@ -87,7 +87,7 @@ export default function ModelPage() {
   return (
     <>
       <Navbar />
-      <div style={{ paddingTop: 80 }}>
+      <div className="page-offset">
         {/* Image gallery */}
         {images.length > 0 && (
           <div
@@ -171,7 +171,7 @@ export default function ModelPage() {
 
         <div className="container" style={{ paddingTop: 40, paddingBottom: 80 }}>
           {/* Breadcrumb */}
-          <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 24, fontSize: "0.85rem", color: "var(--text-muted)" }}>
+          <div className="breadcrumb">
             <Link href="/marques" style={{ color: "var(--accent-primary)" }}>Marques</Link>
             <span>›</span>
             <Link href={`/marques/${encodeURIComponent(model.brand_name)}`} style={{ color: "var(--accent-primary)" }}>
@@ -181,7 +181,7 @@ export default function ModelPage() {
             <span>{model.name}</span>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 380px", gap: 40, alignItems: "start" }}>
+          <div className="model-layout">
             {/* Main column */}
             <div>
               {/* Title */}
@@ -269,7 +269,7 @@ export default function ModelPage() {
             </div>
 
             {/* Sidebar */}
-            <div style={{ position: "sticky", top: 100 }}>
+            <div className="model-aside">
               <div className="glass-panel">
                 <h3 style={{ marginBottom: 20, fontSize: "1rem" }}>Informations rapides</h3>
                 {[
@@ -334,7 +334,7 @@ function SpecTable({ spec }: { spec: Spec }) {
       <h4 style={{ marginBottom: 16, color: "var(--accent-primary)", fontSize: "0.9rem" }}>
         {spec.variant_name}
       </h4>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 2 }}>
+      <div className="specs-grid">
         {rows.filter((r) => r.value !== null && r.value !== undefined && r.value !== 0).map((row) => (
           <div
             key={row.label}

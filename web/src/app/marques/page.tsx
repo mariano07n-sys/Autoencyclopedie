@@ -62,7 +62,7 @@ export default function MarquesPage() {
     <>
       <Navbar />
       <Reveal />
-      <div style={{ paddingTop: 100 }}>
+      <div className="page-offset-lg">
         <div className="container">
           {/* Header */}
           <div className="section-header animate-fadeInUp">

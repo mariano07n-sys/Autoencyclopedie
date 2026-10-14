@@ -51,7 +51,7 @@ export default function ModelesPage() {
     <>
       <Navbar />
       <Reveal />
-      <div style={{ paddingTop: 100 }}>
+      <div className="page-offset-lg">
         <div className="container">
           <div className="section-header animate-fadeInUp">
             <span className="section-label">Catalogue automobile</span>

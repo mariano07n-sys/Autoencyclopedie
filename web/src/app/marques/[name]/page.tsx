@@ -68,15 +68,9 @@ export default function BrandPage() {
   return (
     <>
       <Navbar />
-      <div style={{ paddingTop: 80 }}>
+      <div className="page-offset">
         {/* Brand Header */}
-        <div
-          style={{
-            background: "linear-gradient(180deg, rgba(255,107,26,0.10) 0%, transparent 100%)",
-            borderBottom: "1px solid var(--border-subtle)",
-            padding: "60px 0 40px",
-          }}
-        >
+        <div className="brand-hero">
           <div className="container">
             <Link href="/marques" style={{ color: "var(--text-muted)", fontSize: "0.85rem", display: "inline-flex", alignItems: "center", gap: 6, marginBottom: 24 }}>
               ← Retour aux marques

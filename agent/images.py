@@ -5,6 +5,9 @@ images.py - Enrichit les visuels depuis Wikimedia Commons (aucun quota Gemini co
     python images.py --logos            # logos uniquement
     python images.py --photos           # photos de modèles uniquement
     python images.py --limit 30         # limite le nombre d'entités traitées
+
+Pour un lancement sans surveillance (verrou, reprise, débit auto-réglé, budget
+temps), utiliser `collect_images.py`.
 """
 
 import argparse
@@ -34,12 +37,102 @@ HEADERS = {
     )
 }
 DELAY = float(os.getenv("WIKI_DELAY_SECONDS", "0.15"))
+# Commons répond 429 dès que deux processus le sollicitent en parallèle : le pilotage
+# (collect_images.py) surveille ces compteurs pour ralentir plutôt que perdre des visuels.
+STATS = {"searches": 0, "throttled": 0, "errors": 0}
 LOGO_STOPWORDS = ("team", "racing", "f1", "flag", "wordmark", "sticker", "plate")
 PHOTO_MIMES = {"image/jpeg", "image/png", "image/svg+xml", "image/webp"}
 
 
 def _tokens(text: str, min_len: int = 3) -> List[str]:
     return [t for t in re.split(r"[^a-z0-9]+", (text or "").lower()) if len(t) >= min_len]
+
+
+# Statuts à qui on ne peut rien reprocher : le fichier existe, c'est le serveur qui
+# sature (429) ou lâche (5xx). Les traiter comme « mort » effacerait des visuels valides.
+THROTTLED = (429, 500, 502, 503, 504)
+
+
+def _api_get(url: str, params: Optional[Dict] = None, **kw) -> requests.Response:
+    """GET poli : marque les saturationes, patiente et retente une fois."""
+    STATS["searches"] += 1
+    res = requests.get(url, params=params, headers=HEADERS, timeout=kw.pop("timeout", 25), **kw)
+    if res.status_code in THROTTLED:
+        STATS["throttled"] += 1
+        wait = float(os.getenv("WIKI_THROTTLE_WAIT", "20"))
+        print(f"   ⏳ Wikimedia saturé ({res.status_code}), pause de {wait:.0f}s")
+        time.sleep(wait)
+        res = requests.get(url, params=params, headers=HEADERS, timeout=30, **kw)
+    res.raise_for_status()
+    time.sleep(DELAY)
+    return res
+
+
+def _alive(url: str) -> Optional[bool]:
+    """True vivant, False absent (404/410), None indéterminé (serveur saturé)."""
+    try:
+        res = requests.head(url, headers=HEADERS, timeout=15, allow_redirects=True)
+        if res.status_code == 200:
+            return True
+        if res.status_code in THROTTLED:
+            STATS["throttled"] += 1
+            return None
+        return False
+    except requests.RequestException:
+        STATS["errors"] += 1
+        return None
+
+
+def _is_alive(url: str) -> bool:
+    return _alive(url) is not False
+
+
+LOCK_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".wikimedia.lock")
+
+
+def _pid_alive(pid: int) -> bool:
+    if pid <= 0:
+        return False
+    if os.name == "nt":
+        import ctypes
+
+        kernel32 = ctypes.windll.kernel32
+        kernel32.OpenProcess.restype = ctypes.c_void_p
+        # QUERY_LIMITED_INFORMATION : lire l'existence sans toucher au processus.
+        handle = kernel32.OpenProcess(0x1000, False, pid)
+        if handle:
+            kernel32.CloseHandle(handle)
+        return bool(handle)
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
+
+
+def acquire_lock(role: str) -> None:
+    """Commons répartit son quota par client : deux processus simultanés = rafale de 429."""
+    try:
+        with open(LOCK_FILE, encoding="utf-8") as handle:
+            owner = handle.read().strip()
+    except OSError:
+        owner = ""
+    if owner:
+        pid = int(owner.split()[0]) if owner.split()[0].isdigit() else 0
+        if _pid_alive(pid):
+            raise RuntimeError(f"🔒 {owner} occupe déjà Wikimedia (PID {pid}) — un seul client à la fois")
+        print(f"🧹 Verrou orphelin ({owner}) repris.")
+    with open(LOCK_FILE, "w", encoding="utf-8") as handle:
+        handle.write(f"{os.getpid()} {role}")
+
+
+def release_lock() -> None:
+    try:
+        os.remove(LOCK_FILE)
+    except OSError:
+        pass
 
 
 def _search_files(query: str, limit: int = 8) -> List[Dict]:
@@ -57,8 +150,7 @@ def _search_files(query: str, limit: int = 8) -> List[Dict]:
         "format": "json",
     }
     try:
-        res = requests.get(COMMONS_API, params=params, headers=HEADERS, timeout=25)
-        res.raise_for_status()
+        res = _api_get(COMMONS_API, params)
         pages = (res.json().get("query") or {}).get("pages") or {}
     except (requests.RequestException, ValueError) as exc:
         print(f"   ⚠ Commons indisponible ({exc})")
@@ -74,14 +166,6 @@ def _search_files(query: str, limit: int = 8) -> List[Dict]:
                     "width": info.get("width") or 0})
     time.sleep(DELAY)
     return out
-
-
-def _is_alive(url: str) -> bool:
-    try:
-        res = requests.head(url, headers=HEADERS, timeout=15, allow_redirects=True)
-        return res.status_code == 200
-    except requests.RequestException:
-        return False
 
 
 LOGO_HINTS = ("logo", "logotype", "crest", "badge", "emblem", "seal", "arms", "wordmark")
@@ -113,9 +197,9 @@ def _logo_score(title: str, mime: str, brand_tokens: set) -> int:
 def _page_lead(lang: str, query: str) -> Optional[Tuple[str, Optional[str], Optional[str]]]:
     """Article Wikipédia trouvé pour `query` : (titre, image originale, vignette)."""
     try:
-        hit = requests.get(
+        hit = _api_get(
             f"https://{lang}.wikipedia.org/w/api.php",
-            params={
+            {
                 "action": "query",
                 "list": "search",
                 "srsearch": query,
@@ -123,21 +207,16 @@ def _page_lead(lang: str, query: str) -> Optional[Tuple[str, Optional[str], Opti
                 "format": "json",
                 "maxlag": 5,
             },
-            headers=HEADERS,
-            timeout=25,
         ).json()
         titles = [s["title"] for s in (hit.get("query") or {}).get("search", [])]
         if not titles:
             return None
         title = titles[0]
-        summary = requests.get(
-            f"https://{lang}.wikipedia.org/api/rest_v1/page/summary/{requests.utils.quote(title)}",
-            headers=HEADERS,
-            timeout=25,
+        summary = _api_get(
+            f"https://{lang}.wikipedia.org/api/rest_v1/page/summary/{requests.utils.quote(title)}"
         ).json()
     except (requests.RequestException, ValueError):
         return None
-    time.sleep(DELAY)
     original = (summary.get("originalimage") or {}).get("source")
     thumb = (summary.get("thumbnail") or {}).get("source")
     return title, original, thumb
@@ -148,23 +227,21 @@ def _article_logo_file(lang: str, title: str, brand_name: str) -> Optional[str]:
     brand_tokens = set(_tokens(brand_name, 2))
     api = f"https://{lang}.wikipedia.org/w/api.php"
     try:
-        listing = requests.get(api, params={
+        listing = _api_get(api, {
             "action": "query", "titles": title, "prop": "images",
             "imlimit": 40, "format": "json", "maxlag": 5,
-        }, headers=HEADERS, timeout=25).json()
+        }).json()
         names = [img["title"] for page in (listing.get("query") or {}).get("pages", {}).values()
                  for img in page.get("images", [])]
         names = [n for n in names if not n.lower().endswith((".gif", ".webm", ".ogg"))]
         if not names:
             return None
-        time.sleep(DELAY)
-        info = requests.get(api, params={
+        info = _api_get(api, {
             "action": "query", "titles": "|".join(names[:40]), "prop": "imageinfo",
             "iiprop": "url|mime", "iiurlwidth": 900, "format": "json", "maxlag": 5,
-        }, headers=HEADERS, timeout=25).json()
+        }).json()
     except (requests.RequestException, ValueError, KeyError):
         return None
-    time.sleep(DELAY)
 
     best_url, best_rank = None, 0
     for page in (info.get("query") or {}).get("pages", {}).values():
@@ -295,9 +372,10 @@ def find_photos(brand_name: str, model_name: str, year: Optional[int]) -> Tuple[
         scored.sort(key=lambda pair: pair[0], reverse=True)
         candidates = [u for _, u in scored[:5]]
         if candidates:
-            alive = [u for u in candidates if _is_alive(u)]
-            if alive:
-                return alive[0], alive
+            # Ces URLs sortent de la réponse de l'API Commons : elles existent par
+            # construction. Vérifier les cinq coûtait ~40 s par modèle pour rien.
+            if _is_alive(candidates[0]):
+                return candidates[0], candidates
 
     for lang in ("en", "fr"):
         lead = _page_lead(lang, f"{brand_name} {primary} {year or ''}".strip())
@@ -331,18 +409,23 @@ def enrich_logos(limit: Optional[int] = None, skip_done: bool = True) -> int:
     for i, brand in enumerate(brands, 1):
         print(f"[{i}/{len(brands)}] logo {brand['name']}", flush=True)
         url = find_logo(brand["name"])
-        update_brand_logo(brand["id"], url)
         if url:
+            update_brand_logo(brand["id"], url)
             found += 1
             print(f"   ✓ {url[:90]}")
         else:
-            print("   ∅ aucun logo fiable (placeholder conservé)")
+            # Une recherche infructueuse n'est pas une preuve d'absence : le logo
+            # déjà en base reste en place.
+            print("   ∅ aucun logo fiable (existant conservé)")
     print(f"✅ {found}/{len(brands)} logos trouvés.")
     return found
 
 
-def enrich_photos(limit: Optional[int] = None) -> int:
-    models = get_models_for_media()
+def enrich_photos(limit: Optional[int] = None, skip_done: bool = True) -> int:
+    models = get_models_for_media(only_missing=skip_done)
+    if skip_done:
+        done = len(get_models_for_media()) - len(models)
+        print(f"↷ {done} modèles déjà pourvus d'une galerie, {len(models)} à illustrer.")
     if limit:
         models = models[:limit]
     found = 0
@@ -350,8 +433,8 @@ def enrich_photos(limit: Optional[int] = None) -> int:
         label = f"{model['brand_name']} {model['name']}"
         print(f"[{i}/{len(models)}] photos {label}", flush=True)
         thumb, gallery = find_photos(model["brand_name"], model["name"], model.get("year_start"))
-        update_model_images(model["id"], thumb, gallery)
         if thumb:
+            update_model_images(model["id"], thumb, gallery)
             found += 1
             print(f"   ✓ {thumb[:90]}")
         else:

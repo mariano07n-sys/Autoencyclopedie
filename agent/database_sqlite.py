@@ -285,16 +285,18 @@ def get_models_by_brand(brand_id: int) -> List[Dict]:
     return result
 
 
-def get_models_for_media() -> List[Dict]:
-    conn = get_connection()
-    rows = conn.execute(
-        """
+def get_models_for_media(only_missing: bool = False) -> List[Dict]:
+    """Modèles à illustrer. `only_missing` saute ceux ayant déjà une galerie."""
+    sql = """
         SELECT m.id, m.name, m.generation, m.year_start, m.year_end,
                m.thumbnail_url, b.name AS brand_name
         FROM models m JOIN brands b ON b.id = m.brand_id
-        ORDER BY b.name, m.year_start
-        """
-    ).fetchall()
+    """
+    if only_missing:
+        sql += " WHERE m.image_urls IS NULL OR m.image_urls IN ('[]', 'null', '')"
+    sql += " ORDER BY b.name, m.year_start"
+    conn = get_connection()
+    rows = conn.execute(sql).fetchall()
     conn.close()
     return [dict(r) for r in rows]
 

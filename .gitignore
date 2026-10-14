@@ -7,6 +7,9 @@ agent/.env
 data/
 *.db
 
+# Verrou d'exécution : un seul client Wikimedia à la fois (voir collect_images.py)
+agent/.wikimedia.lock
+
 # Python
 .venv/
 __pycache__/

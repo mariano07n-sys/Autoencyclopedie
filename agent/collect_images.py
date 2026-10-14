@@ -70,7 +70,17 @@ def _run_phase(kind: str, batch: int, deadline: float, skip_done: bool) -> int:
     total = 0
     while time.time() < deadline:
         before = dict(images.STATS)
-        count = runner(batch, skip_done=skip_done)
+        try:
+            count = runner(batch, skip_done=skip_done)
+        except Exception as exc:
+            # Une coupure DNS ou un pooler Supabase qui répond une seconde trop tard
+            # ne doit pas jeter 55 minutes de collecte non surveillée.
+            print(f"🌐 Salve interrompue ({type(exc).__name__}: {str(exc)[:80]}) — "
+                  f"reprise dans 30 s", flush=True)
+            time.sleep(30)
+            if time.time() >= deadline:
+                break
+            continue
         total += count
         _tune_speed(images.STATS, before)
         if not skip_done:

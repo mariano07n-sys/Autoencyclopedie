@@ -10,7 +10,7 @@ interface Model {
   id: number;
   name: string;
   brand_name: string;
-  year_start: number;
+  year_start: number | null;
   year_end: number | null;
   thumbnail_url: string;
   segment: string;
@@ -150,7 +150,9 @@ export default function ModelesPage() {
                       <div className="model-card-brand">{model.brand_name}</div>
                       <div className="model-card-name">{model.name}</div>
                       <div className="model-card-year">
-                        {model.year_start}{model.year_end ? ` – ${model.year_end}` : " – présent"}
+                        {model.year_start
+                          ? `${model.year_start}${model.year_end ? ` – ${model.year_end}` : " – présent"}`
+                          : "Année inconnue"}
                       </div>
                       <div className="model-card-tags">
                         {model.is_iconic && <span className="tag tag-gold">⭐ Iconique</span>}

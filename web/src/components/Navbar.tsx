@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 
 interface SearchResult {
   brands: { id: number; name: string; country: string }[];
-  models: { id: number; name: string; brand_name: string; year_start: number }[];
+  models: { id: number; name: string; brand_name: string; year_start: number | null }[];
 }
 
 export default function Navbar() {

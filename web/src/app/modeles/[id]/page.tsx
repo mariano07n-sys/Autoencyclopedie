@@ -37,7 +37,7 @@ interface Model {
   name: string;
   generation: string;
   brand_name: string;
-  year_start: number;
+  year_start: number | null;
   year_end: number | null;
   body_styles: string[];
   segment: string;
@@ -201,8 +201,8 @@ export default function ModelPage() {
                   )}
                 </h1>
                 <p style={{ color: "var(--text-secondary)", fontSize: "1.1rem" }}>
-                  {model.year_start}
-                  {model.year_end ? ` – ${model.year_end}` : " – aujourd'hui"}
+                  {model.year_start ?? "Année inconnue"}
+                  {model.year_start && (model.year_end ? ` – ${model.year_end}` : " – aujourd'hui")}
                   {model.countries?.length > 0 && (
                     <span style={{ marginLeft: 16, color: "var(--text-muted)" }}>
                       🌍 {model.countries.slice(0, 3).join(", ")}
@@ -275,7 +275,7 @@ export default function ModelPage() {
                   { label: "Marque", value: model.brand_name },
                   { label: "Modèle", value: model.name },
                   { label: "Génération", value: model.generation },
-                  { label: "Production", value: model.year_end ? `${model.year_start} – ${model.year_end}` : `${model.year_start} – présent` },
+                  { label: "Production", value: model.year_start ? (model.year_end ? `${model.year_start} – ${model.year_end}` : `${model.year_start} – présent`) : null },
                   { label: "Segment", value: model.segment },
                   { label: "Carrosseries", value: model.body_styles?.join(", ") },
                   { label: "Marchés", value: model.countries?.slice(0, 5).join(", ") },

@@ -334,9 +334,17 @@ class CarDataAgent:
 
         raw = self._call_llm(prompt)
         models = self._parse_json(raw, "models")
+        # Un appel à 53 tokens a produit du JSON légitime mais sans modèle exploitable :
+        # laisser la marque en cache la rendrait indéfiniment vide.
+        if models and not any(m.get("name") for m in models):
+            console.print("[yellow]    ⚠ Réponse sans nom de modèle, cache invalidé[/yellow]")
+            invalidate_cached_result(prompt[:200])
+            models = []
 
         added = 0
         for model_data in models:
+            if not model_data.get("name"):
+                continue
             try:
                 year = model_data.get("year_start")
                 # gpt-oss a daté des Autobianchi A112 en 2028/2032 : rien de futuriste

@@ -602,6 +602,23 @@ a {
   flex: none;
   object-fit: cover;
   background: var(--bg-surface);
+  position: relative;
+  overflow: hidden;
+}
+
+/* La vignette n'apparaît qu'une fois décodée, sur les gouttes qui tournent. */
+.model-card-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity var(--transition-smooth);
+}
+
+.model-card-image.is-loaded .model-card-img,
+.model-card-img.is-loaded {
+  opacity: 1;
 }
 
 .model-card-image-empty {
@@ -1120,6 +1137,84 @@ a {
   .page-loader-spinner span:nth-child(4) { transform: rotate(90deg); }
   .page-loader-spinner span:nth-child(5) { transform: rotate(120deg); }
   .page-loader-spinner span:nth-child(6) { transform: rotate(150deg); }
+}
+
+/* ── IMAGE LOADER (cinq gouttes qui se soudent, filtre SVG #uib-jelly-ooze) ── */
+.image-dots {
+  --dots-size: 60px;
+  --dots-color: var(--accent-primary);
+  --dots-speed: 2.6s;
+  --dots-dot-size: calc(var(--dots-size) * 0.23);
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  height: var(--dots-dot-size);
+  width: var(--dots-size);
+  filter: url("#uib-jelly-ooze");
+  pointer-events: none;
+}
+
+.image-dots span {
+  position: absolute;
+  top: calc(50% - var(--dots-dot-size) / 2);
+  left: calc(0px - var(--dots-dot-size) / 2);
+  display: block;
+  height: var(--dots-dot-size);
+  width: var(--dots-dot-size);
+  border-radius: 50%;
+  background-color: var(--dots-color);
+  animation: imageDotsStream var(--dots-speed) linear infinite both;
+}
+
+.image-dots span:nth-child(2) { animation-delay: calc(var(--dots-speed) * -0.2); }
+.image-dots span:nth-child(3) { animation-delay: calc(var(--dots-speed) * -0.4); }
+.image-dots span:nth-child(4) { animation-delay: calc(var(--dots-speed) * -0.6); }
+.image-dots span:nth-child(5) { animation-delay: calc(var(--dots-speed) * -0.8); }
+
+/* Pastilles (logos) : la gelée doit tenir dans un cercle de 96 px. */
+.logo-slot {
+  position: relative;
+  width: 60px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.logo-slot .image-dots {
+  --dots-size: 34px;
+  --dots-color: var(--text-secondary);
+}
+
+.logo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+@keyframes imageDotsStream {
+  0%, 100% {
+    transform: translateX(0) scale(0);
+  }
+  50% {
+    transform: translateX(calc(var(--dots-size) * 0.5)) scale(1);
+  }
+  99.999% {
+    transform: translateX(calc(var(--dots-size))) scale(0);
+  }
+}
+
+/* Sans le filtre SVG, les gouttes figées ne disent rien : alignement statique. */
+@media (prefers-reduced-motion: reduce) {
+  .image-dots span {
+    animation: none;
+    opacity: 0.5;
+  }
+  .image-dots span:nth-child(1) { transform: translateX(calc(var(--dots-size) * 0.05)) scale(0.6); }
+  .image-dots span:nth-child(2) { transform: translateX(calc(var(--dots-size) * 0.25)) scale(0.8); }
+  .image-dots span:nth-child(3) { transform: translateX(calc(var(--dots-size) * 0.5)) scale(1); }
+  .image-dots span:nth-child(4) { transform: translateX(calc(var(--dots-size) * 0.75)) scale(0.8); }
+  .image-dots span:nth-child(5) { transform: translateX(calc(var(--dots-size) * 0.95)) scale(0.6); }
 }
 
 /* ── ANIMATIONS ── */

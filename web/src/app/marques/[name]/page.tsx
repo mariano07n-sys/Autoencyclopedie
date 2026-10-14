@@ -6,6 +6,7 @@ import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import ModelThumb from "@/components/ModelThumb";
 import PageLoader from "@/components/PageLoader";
+import ImageDots from "@/components/ImageDots";
 
 interface Brand {
   id: number;
@@ -39,6 +40,8 @@ export default function BrandPage() {
   const [brand, setBrand] = useState<Brand | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"models" | "history">("models");
+  const [logoLoaded, setLogoLoaded] = useState(false);
+  const [logoBroken, setLogoBroken] = useState(false);
 
   useEffect(() => {
     fetch(`/api/brands/${encodeURIComponent(name)}`)
@@ -87,9 +90,21 @@ export default function BrandPage() {
                   flexShrink: 0,
                 }}
               >
-                {brand.logo_url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={brand.logo_url} alt={brand.name} style={{ width: 60, height: 60, objectFit: "contain" }} />
+                {brand.logo_url && !logoBroken ? (
+                  <div className="logo-slot">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={brand.logo_url}
+                      alt={brand.name}
+                      className={`model-card-img logo-img${logoLoaded ? " is-loaded" : ""}`}
+                      ref={(node) => {
+                        if (node?.complete) setLogoLoaded(true);
+                      }}
+                      onLoad={() => setLogoLoaded(true)}
+                      onError={() => setLogoBroken(true)}
+                    />
+                    {!logoLoaded && <ImageDots label="Chargement du logo…" />}
+                  </div>
                 ) : (
                   <span style={{ fontSize: "2.5rem" }}>🏭</span>
                 )}

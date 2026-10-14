@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import PageLoader from "@/components/PageLoader";
+import ImageDots from "@/components/ImageDots";
 
 interface Spec {
   id: number;
@@ -48,6 +49,33 @@ interface Model {
   countries: string[];
   is_iconic: boolean;
   specs: Spec[];
+}
+
+// Le remontage par `key` réarme l'état de chargement à chaque image de la
+// galerie : un effet qui remettrait l'indicateur à zéro serait interdit ici.
+function HeroImage({ src, alt }: { src: string; alt: string }) {
+  const [loaded, setLoaded] = useState(false);
+  return (
+    <>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={src}
+        alt={alt}
+        className={`model-card-img${loaded ? " is-loaded" : ""}`}
+        ref={(node) => {
+          if (node?.complete) setLoaded(true);
+        }}
+        onLoad={() => setLoaded(true)}
+        onError={(e) => {
+          e.currentTarget.style.visibility = "hidden";
+          // Une URL morte ne déclenche jamais onLoad : sans ceci les gouttes
+          // tourneraient indéfiniment sur une image invisible.
+          setLoaded(true);
+        }}
+      />
+      {!loaded && <ImageDots />}
+    </>
+  );
 }
 
 export default function ModelPage() {
@@ -97,15 +125,10 @@ export default function ModelPage() {
               overflow: "hidden",
             }}
           >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
+            <HeroImage
               key={activeImage}
               src={images[activeImage]}
               alt={`${model.brand_name} ${model.name}`}
-              style={{ width: "100%", height: "100%", objectFit: "cover" }}
-              onError={(e) => {
-                e.currentTarget.style.visibility = "hidden";
-              }}
             />
             <div
               style={{

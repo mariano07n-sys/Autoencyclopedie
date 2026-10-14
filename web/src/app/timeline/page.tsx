@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import ModelThumb from "@/components/ModelThumb";
+import PageLoader from "@/components/PageLoader";
 import Reveal from "@/components/Reveal";
 
 interface Model {
@@ -80,11 +81,7 @@ export default function TimelinePage() {
           )}
 
           {loading ? (
-            <div className="timeline">
-              {[0, 1, 2].map((i) => (
-                <div key={i} className="skeleton" style={{ height: 340, marginBottom: 32 }} />
-              ))}
-            </div>
+            <PageLoader />
           ) : visible.length > 0 ? (
             <div className="timeline">
               {visible.map((d) => (

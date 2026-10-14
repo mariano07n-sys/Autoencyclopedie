@@ -1035,6 +1035,72 @@ a {
   border-radius: var(--radius-sm);
 }
 
+/* ── PAGE LOADER (six barres qui balaient) ── */
+.page-loader {
+  min-height: 60vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+  padding: 120px 24px;
+}
+
+.page-loader-spinner {
+  --loader-size: 35px;
+  --loader-stroke: 3.5px;
+  --loader-speed: 0.9s;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--loader-size);
+  width: var(--loader-size);
+}
+
+.page-loader-spinner span {
+  position: absolute;
+  top: calc(50% - var(--loader-stroke) / 2);
+  left: 0;
+  height: var(--loader-stroke);
+  width: 100%;
+  border-radius: calc(var(--loader-stroke) / 2);
+  background-color: var(--accent-primary);
+  animation: pageLoaderSweep var(--loader-speed) ease-in-out infinite alternate;
+}
+
+.page-loader-spinner span:nth-child(1) { animation-delay: calc(var(--loader-speed) * -0.375); opacity: 1; }
+.page-loader-spinner span:nth-child(2) { animation-delay: calc(var(--loader-speed) * -0.375); opacity: 0.8; }
+.page-loader-spinner span:nth-child(3) { animation-delay: calc(var(--loader-speed) * -0.3); opacity: 0.6; }
+.page-loader-spinner span:nth-child(4) { animation-delay: calc(var(--loader-speed) * -0.225); opacity: 0.4; }
+.page-loader-spinner span:nth-child(5) { animation-delay: calc(var(--loader-speed) * -0.15); opacity: 0.2; }
+.page-loader-spinner span:nth-child(6) { animation-delay: calc(var(--loader-speed) * -0.075); opacity: 0.1; }
+
+@keyframes pageLoaderSweep {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(180deg); }
+}
+
+.page-loader-label {
+  font-size: 0.78rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* Motion infini proscrit : éventail figé à la place du balayage. */
+@media (prefers-reduced-motion: reduce) {
+  .page-loader-spinner span {
+    animation: none;
+    opacity: 0.55;
+  }
+  .page-loader-spinner span:nth-child(2) { transform: rotate(30deg); }
+  .page-loader-spinner span:nth-child(3) { transform: rotate(60deg); }
+  .page-loader-spinner span:nth-child(4) { transform: rotate(90deg); }
+  .page-loader-spinner span:nth-child(5) { transform: rotate(120deg); }
+  .page-loader-spinner span:nth-child(6) { transform: rotate(150deg); }
+}
+
 /* ── ANIMATIONS ── */
 @keyframes fadeInUp {
   from { opacity: 0; transform: translateY(24px); filter: blur(8px); }

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
+import PageLoader from "@/components/PageLoader";
 
 interface Spec {
   id: number;
@@ -72,9 +73,7 @@ export default function ModelPage() {
     return (
       <>
         <Navbar />
-        <div style={{ paddingTop: 120, textAlign: "center" }}>
-          <div className="skeleton" style={{ width: 300, height: 200, margin: "0 auto 24px" }} />
-        </div>
+        <PageLoader />
       </>
     );
   }

@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import ModelThumb from "@/components/ModelThumb";
+import PageLoader from "@/components/PageLoader";
 
 interface Brand {
   id: number;
@@ -54,11 +55,7 @@ export default function BrandPage() {
     return (
       <>
         <Navbar />
-        <div style={{ paddingTop: 120, textAlign: "center" }}>
-          <div className="skeleton" style={{ width: 80, height: 80, borderRadius: "50%", margin: "0 auto 24px" }} />
-          <div className="skeleton" style={{ width: 200, height: 32, margin: "0 auto 12px" }} />
-          <div className="skeleton" style={{ width: 120, height: 20, margin: "0 auto" }} />
-        </div>
+        <PageLoader />
       </>
     );
   }

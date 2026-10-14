@@ -71,7 +71,7 @@ Légende : ✅ fait · ⬜ à faire · 🔧 action manuelle (vous)
 | 5.5 | Logos marques dans les prompts Gemini | ⬜ |
 | 5.6 | Script migration SQLite → Supabase (si ancienne `data/cars.db`) | ⬜ |
 | 5.7 | README web aligné sur Supabase / Vercel | ⬜ |
-| 5.8 | Images réelles (logos + photos) via Wikimedia Commons | 🔄 `agent/images.py` en cours (logos ~130/193, photos ensuite) |
+| 5.8 | Images réelles (logos + photos) via Wikimedia Commons | ✅ `agent/images.py` : 160/193 logos et 188/197 photos rattachés, 100 % d'URLs vivantes vérifiées par `agent/verify_images.py` ; les 42 entités restantes gardent le placeholder |
 | 5.9 | Palette « Asphalte & Orange » | ✅ fond graphite `#141619`, surfaces `#1D2024`, navbar/recherche `#232629`, titres `#EDF0F2`, texte secondaire `#9AA3AC`, accents/boutons orange `#FF6B1A` (remplace la palette vert/crème testée le 2026-10-13) |
 
 ---

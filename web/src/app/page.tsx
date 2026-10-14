@@ -162,8 +162,7 @@ export default function HomePage() {
             <EmptyState
               icon="🏭"
               title="Base de données vide"
-              description="Lancez l'agent IA pour collecter les marques et modèles automobiles."
-              action={{ label: "Comment démarrer ?", href: "#guide" }}
+              description="Aucune marque collectée pour le moment. L'agent de collecte alimente cette encyclopédie."
             />
           )}
 
@@ -213,88 +212,6 @@ export default function HomePage() {
         </section>
       )}
 
-      {/* ── GUIDE DE DÉMARRAGE ── */}
-      <section className="section" id="guide">
-        <div className="container">
-          <div className="section-header reveal-element">
-            <span className="section-label">Démarrage rapide</span>
-            <h2 className="section-title">Comment alimenter la base de données ?</h2>
-            <p className="section-subtitle">
-              L'agent IA utilise Google Gemini pour collecter automatiquement toutes les données.
-            </p>
-          </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 20 }}>
-            {[
-              {
-                step: "01",
-                icon: "🔑",
-                title: "Configurer l'API Gemini",
-                desc: "Copiez agent/.env.example en agent/.env et ajoutez votre clé Google Gemini (gratuite sur aistudio.google.com).",
-                code: "cp agent/.env.example agent/.env",
-              },
-              {
-                step: "02",
-                icon: "📦",
-                title: "Installer les dépendances",
-                desc: "Installez les bibliothèques Python nécessaires à l'agent de collecte.",
-                code: "pip install -r agent/requirements.txt",
-              },
-              {
-                step: "03",
-                icon: "🚀",
-                title: "Lancer l'agent",
-                desc: "Démarrez l'agent pour collecter toutes les marques et modèles depuis Gemini.",
-                code: "python agent/main.py --full-run",
-              },
-              {
-                step: "04",
-                icon: "🌐",
-                title: "Démarrer le site",
-                desc: "Lancez l'API Python et le serveur Next.js pour visualiser les données.",
-                code: "python agent/api.py & npm run dev",
-              },
-            ].map((item) => (
-              <div key={item.step} className="glass-panel" style={{ position: "relative" }}>
-                <div
-                  style={{
-                    position: "absolute",
-                    top: 24,
-                    right: 24,
-                    fontFamily: "Outfit, sans-serif",
-                    fontSize: "2.5rem",
-                    fontWeight: 900,
-                    color: "rgba(237,240,242,0.05)",
-                    lineHeight: 1,
-                  }}
-                >
-                  {item.step}
-                </div>
-                <div style={{ fontSize: "2rem", marginBottom: 12 }}>{item.icon}</div>
-                <h3 style={{ marginBottom: 8, fontSize: "1rem" }}>{item.title}</h3>
-                <p style={{ fontSize: "0.875rem", color: "var(--text-secondary)", marginBottom: 16, lineHeight: 1.7 }}>
-                  {item.desc}
-                </p>
-                <code
-                  style={{
-                    display: "block",
-                    background: "var(--bg-surface)",
-                    border: "1px solid var(--border-subtle)",
-                    borderRadius: "var(--radius-sm)",
-                    padding: "8px 12px",
-                    fontSize: "0.78rem",
-                    color: "var(--accent-primary)",
-                    fontFamily: "monospace",
-                  }}
-                >
-                  {item.code}
-                </code>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* ── FOOTER ── */}
       <footer className="footer">
         <div className="container footer-inner">
@@ -315,12 +232,10 @@ function EmptyState({
   icon,
   title,
   description,
-  action,
 }: {
   icon: string;
   title: string;
   description: string;
-  action?: { label: string; href: string };
 }) {
   return (
     <div
@@ -333,12 +248,7 @@ function EmptyState({
     >
       <div style={{ fontSize: "3rem", marginBottom: 16 }}>{icon}</div>
       <h3 style={{ marginBottom: 8, color: "var(--text-secondary)" }}>{title}</h3>
-      <p style={{ color: "var(--text-muted)", fontSize: "0.9rem", marginBottom: 24 }}>{description}</p>
-      {action && (
-        <a href={action.href} className="btn btn-secondary">
-          {action.label}
-        </a>
-      )}
+      <p style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>{description}</p>
     </div>
   );
 }

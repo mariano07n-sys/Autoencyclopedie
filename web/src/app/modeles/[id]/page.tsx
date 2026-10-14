@@ -116,6 +116,29 @@ export default function ModelPage() {
               }}
             />
             {images.length > 1 && (
+              <>
+                <button
+                  type="button"
+                  className="gallery-arrow gallery-arrow-left"
+                  aria-label="Image précédente"
+                  onClick={() => setActiveImage((activeImage - 1 + images.length) % images.length)}
+                >
+                  <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" strokeWidth="2" fill="none"><path d="M15 18l-6-6 6-6" /></svg>
+                </button>
+                <button
+                  type="button"
+                  className="gallery-arrow gallery-arrow-right"
+                  aria-label="Image suivante"
+                  onClick={() => setActiveImage((activeImage + 1) % images.length)}
+                >
+                  <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" strokeWidth="2" fill="none"><path d="M9 18l6-6-6-6" /></svg>
+                </button>
+                <span className="gallery-counter">
+                  {activeImage + 1} / {images.length}
+                </span>
+              </>
+            )}
+            {images.length > 1 && (
               <div
                 style={{
                   position: "absolute",
